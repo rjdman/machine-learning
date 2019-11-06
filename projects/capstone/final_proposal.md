@@ -1,7 +1,7 @@
 # Machine Learning Engineer Nanodegree
 ## Capstone Proposal
 Roger Man  
-Novermber 4th, 2019
+November 4th, 2019
 
 ## Proposal
 <!-- _(approx. 2-3 pages)_ -->
@@ -29,7 +29,7 @@ The [Common Voice dataset](https://voice.mozilla.org/en/datasets) contains 1945 
 
 The audio clips are all in a consistent mp3 format with a sample rate of 48 kHz. Since a variety of volunteers with different hardware have produced this dataset, there may be cause for concern with the consistency of recordings.
 
-Each audio clip has an associated record of metaata, including the following fields:
+Each audio clip has an associated record of metadata, including the following fields:
 - client_id
 - path
 - sentence
