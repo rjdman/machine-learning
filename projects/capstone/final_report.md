@@ -27,14 +27,6 @@ The solution is to create a model which identifies language from speech audio. T
 
 I tackled this problem in a number of steps. Firstly I performed an exploratory data analysis to determine the underlying characteristics of the data in order to find a robust dataset sample for this exercise. The next step was to understand the different transformations available for audio classification. Having settled on using melspectograms as a feature, preprocessing the audio and extracting features into train/validation/test sets. I selected transfer learning as an approach to classifying audio in order to reduce the training time whilst still capturing more complex features from an image. Convolutional Neural Networks typically perform very well in this image classification space. Using the higher level bottleneck features obtained from the ResNet50 model, I trained a classification model using a simple Deep Neural Network.
 
-In search of better performance, I experimented with different elements of the process defined above:
-
-* Different model architectures
-* Unfreezing layers
-* Hyperparameter selection
-* Further subsampling to find melspectograms of consistent size and transformations in the form of cropping melspectograms images
-* Increased the size of training/test/validation dataset
-
 Finally, I evaluated the performance of the final model with the test dataset.
 
 <!--In this section, you will want to clearly define the problem that you are trying to solve, including the strategy (outline of tasks) you will use to achieve the desired solution. You should also thoroughly discuss what the intended solution will be for this problem. Questions to ask yourself when writing this section:
@@ -91,6 +83,21 @@ The Chinese dataset is heavily gender imbalanced with just 32 usable recordings 
 * _Is the visualization thoroughly analyzed and discussed?_
 * _If a plot is provided, are the axes, title, and datum clearly defined?_-->
 
+![Example melspectogram][image]
+
+[image]: images/melspectogram.png "Example melspectogram"
+
+The image above is a visualisation plot from the melspectogram extraction of an audio file. The plot was generated using the [Librosa](https://librosa.github.io) The following characteristics can be found:
+
+* The y-axis shows the frequency bins in the mel scale going from 200Hz to 8000Hz. Any frequencies above or below are not in the human voice range in log scale.
+* The x-axis illustrates the length of the audio in seconds.
+* The colour bar on the right hand side denotes the amplitude in log scale.
+* There is no silence on either side of the graph as the audio has been trimmed.
+
+The rationale behind using the log scale of frequencies, is that it similar to the way in which humans process or perceive sound.
+
+This visual representation of the audio, shows several dimensions of data relating to sound or voice: time, frequency and amplitude. In my opinion, we have encoded the audio information related to a voice or sound into an image. This would be a great input for an image classification model using Convolutional Neural Networks.
+
 ### Algorithms and Techniques
 
 **ResNet50** is a state-of-the-art Deep Neural Network architecture with 50 layers trained on the ImageNet dataset. The model architecture was groundbreaking in solving the [vanishing gradient problem](https://medium.com/@anishsingh20/the-vanishing-gradient-problem-48ae7f501257) where deeper neural networks are outperformed by shallower neural networks.
@@ -109,7 +116,7 @@ However, traditional CNNs such as VGG16 still face vanishing gradients. ResNet50
 [block]: https://i.stack.imgur.com/msvse.png "Residual block"
 [source: imgur](https://i.stack.imgur.com/msvse.png) Residual block
 
-Since the ResNet50 is a great classifier for images, **Transfer Learning** can be applied using the ResNet50 model. Rather than having to build a whole new model architecture and train weights from scratch, we can remove the fully-connected layers or the classifier from the ResNet50 model. We can then build our own model architecture on top then apply one of the following strategies (as shown in the image below):
+Since the ResNet50 model is a great classifier for images, **Transfer Learning** can be applied using the ResNet50 model. Rather than having to build a whole new model architecture and train weights from scratch, we can remove the fully-connected layers or the classifier from the ResNet50 model. We can then build our own model architecture on top then apply one of the following strategies (as shown in the image below):
 
 * Train the entire model (initialising pre-trained weights or random)
 * Freeze some of the initial layers and train the other layers
@@ -123,22 +130,32 @@ Since the ResNet50 is a great classifier for images, **Transfer Learning** can b
 
 Transfer learning offers the ability to leverage the learnings made by another model and apply those learnings to a similar use case. The high performance from the ResNet50 model in the image classification space is the main rationale behind using transfer learning with ResNet50.
 
-The following parameters can be used to train and tune the classifier:
+In all strategies outlined above, we always have our own classifier with at least one fully-connected layer. The following parameters will be used to build, train and tune a classifier:
 
 * **Model architecture**
   * Number of layers (depth of the network)
-  * Layer types and their respective parameters
-    * dense (fully-connected layer, specify nodes)
+  * Layer types and their respective parameters (including activation functions)
+    * dense (number of nodes, regularisers)
     * convolution (filters, stride, padding)
-    * dropout
-    * pooling
+    * dropout (probability)
+    * pooling (max pooling, average pooling)
 
-* **Training parameters**
-  * Activation function
-  * Number of epochs
-  * 
-* 
+* **Model Training parameters**
+  * Number of epochs (number of complete passes)
+  * Batch size (number of samples for every update)
+  * Loss function (the error function e.g. MSE, categorical_crossentropy)
+  * Optimser (function used to minimise the loss function e.g. RMSprop, adam, SGD)
+  * Learning rate (0.001)
+  * Metrics (accuracy)
 
+In terms of data inputs and the transformations into in the model, the flow of data would be as follows:
+
+* Audio files are converted into melspectograms and saved to disk. The number of bins has been set to 224 so that a image of dimensions width x 224 will be created - the height is well-suited for ResNet50.
+* The keras function `preprocess_input` from `keras.applications.resnet50` was able to take the images with varying heights and resize into arrays of (224,224,3).
+  * The width of the images were rescaled to fit the 224 width dimension.
+  * Since these image were grayscale, the `preprocess_input` function manages to automatically create three channels to replicate RGB by copying the original image two times over.
+* the ResNet50 model needs to initalised with the parameter `include_top=False`. This removes the final fully-connected in the original model.
+* **[OPTIONAL]** If we want to freeze all the convolutional layers, we want a convenient way to store the botteneck features from the convolutional layers of ResNet50. Since the weights are preloaded from Keras, next step is use the `model.predict()` function with the (1800, 224,224,3).shape array as input - the 1800 denotes the number of training files. This would be the input to my own fully-connected layers.
 
 
 <!--In this section, you will need to discuss the algorithms and techniques you intend to use for solving the problem. You should justify the use of each one based on the characteristics of the problem and the problem domain. Questions to ask yourself when writing this section:
@@ -160,7 +177,7 @@ The benchmark model will be a classifier which defaults to one language. This wo
 
 I chose to split the data into train/validation/test sets. The train set will be used to train the classifier, with the validation set providing context on the generalisation of the model. The test set will be kept to evaluate the performance of the final model.
 
-There were three stages to preprocessing:
+There were four stages to preprocessing:
 
 * Sampling
 * Creating folders
@@ -193,7 +210,13 @@ From the audio file path from each of these metadatapoints above, I ran the foll
 6. Initialise mel-frequency spectogram image from array
 7. Save file to relevant folder outined above
 
-This generated 1800 training melspectograms, 600 validation melspectograms and 600 test melspectograms. These images were all 224 pixels in height, though they did vary in width. Initally, I did not feel that this would be an issue since the CNN architectures would learn from examples that this is not a distinguishing feature.
+I used the following packages to generate and save images:
+
+* [Librosa](https://librosa.github.io) - in-built functionality to explore audio features including MFCCs, spectograms and melspectograms.
+* [Pillow](https://pillow.readthedocs.io/en/stable/) - functions to convert, save and crop images from numpy arrays
+* [Numpy](https://numpy.org) - helpful in manipulating arrays efficiently
+
+This generated 1800 training melspectograms, 600 validation melspectograms and 600 test melspectograms. These images were all 224 pixels in height, though they did vary in width. I did not feel that this would be an issue since the CNN architectures would learn from many examples that this is not a distinguishing feature.
 
 <!--In this section, all of your preprocessing steps will need to be clearly documented, if any were necessary. From the previous section, any of the abnormalities or characteristics that you identified about the dataset will be addressed and corrected here. Questions to ask yourself when writing this section:
 * _If the algorithms chosen require preprocessing steps like feature selection or feature transformations, have they been properly documented?_
@@ -202,7 +225,7 @@ This generated 1800 training melspectograms, 600 validation melspectograms and 6
 
 ### Implementation
 
-I used Keras :
+I used the Keras python library in the creation of the final solution:
 
 * **ResNet50:** A pre-trained ResNet50 model is available on [Keras](https://keras.io/why-use-keras/). The Keras API is intuituve with in-built presets for hyperparameters but with the flexibility for lower-level tweaking. This means that we can quickly build a baseline model which then can be refined.
 * **Transfer learning:** Keras enables the application of transfer learning by allowing chosen layers to be frozen or unfrozen depending on the objective.
@@ -218,7 +241,12 @@ I used Keras :
 * _Has an initial solution been found and clearly reported?_
 * _Is the process of improvement clearly documented, such as what techniques were used?_
 * _Are intermediate and final solutions clearly reported as the process is improved?_-->
+In search of better performance, I experimented with different elements of the process defined above:
 
+* Different model architectures (VGG16, MobileNet_V2)
+* Unfreezing layers (last 4 layers - this took too long)
+* Further subsampling to find melspectograms of consistent size and transformations in the form of cropping melspectograms images
+* Increased the size of training/test/validation dataset (up to 4000)
 
 ## IV. Results
 <!--_(approx. 2-3 pages)_-->
@@ -246,19 +274,41 @@ I used Keras :
 * _Is the visualization thoroughly analyzed and discussed?_
 * _If a plot is provided, are the axes, title, and datum clearly defined?_-->
 
+
 ### Reflection
+
 <!--In this section, you will summarize the entire end-to-end problem solution and discuss one or two particular aspects of the project you found interesting or difficult. You are expected to reflect on the project as a whole to show that you have a firm understanding of the entire process employed in your work. Questions to ask yourself when writing this section:
 * _Have you thoroughly summarized the entire process you used for this project?_
 * _Were there any interesting aspects of the project?_
 * _Were there any difficult aspects of the project?_
 * _Does the final model and solution fit your expectations for the problem, and should it be used in a general setting to solve these types of problems?_-->
 
+The summary of the steps taken within the project are listed out as follows:
+
+1. Identified problem statement and dataset
+2. Exploratory data analysis
+3. Sample robust dataset
+4. Audio feature transformation analysis
+5. Preprocessing melspectograms for train/validation/test sets
+6. ResNet50 bottleneck feature extraction from melspectograms
+7. Build model architecture
+8. Iterate
+    * Train
+    * Validate
+    * Tweak hyperparameters
+9. Evaluate model with test dataset
+
+* The most interesting part of the project was creating a solutions to micro problems on the journey to finding a larger solution. Although frustrating, some elements of the code were quite useful (such as my multiprocessing script `parallel.py`) and I will likely be able to use these learnings in my future projects.
+* The most difficult part of the project was implementing a model in a deeply technical subject matter that I was unfamiliar with - audio. I had to deal with two areas of research deep learning and audio signaling. This was difficult to balance with my day to day. In addition, comparative to image classification, there is very little in terms of material for purely audio classification.
+* The final solution does meet expectations. At 58.X%, it is almost twice as accurate as the benchmark model (33.3%). However, I do not believe this is a solution that will be beneficial for day to day applications. The amount of error is just too great for the model to be relied upon. There are also practical considerations in terms of the difficult data transformation pipeline in using this tool day to day.
+
 ### Improvement
 
 Although the current model does provide better results than the benchmark model, there are still a lot of potential improvements to be made.
 
 * Data cleansing activities could have made a direct impact on the performance of the final model. Retrospectively, I do feel the Chinese dataset did not have the same depth as the Spanish and English sets. There were comparatively fewer votes for the Chinese dataset. If I could choose the languages again, I may have gone for Russian, Italian, German, English and Spanish since they had the most complete data. These languages would have also opened the doors to further increases in the train/validation/test set size and might have led to better accuracy or generalisation at least.
-* If I used my final solution as the new benchmark, there most definitely is a better solution. There are three areas in which my solution falls down, usability, speed and performance. Google enables multiple languages to be used on it's own voice assistant and language detection though limited to a certain extent. Even if Google's performance is worse, the implementation in terms of outreach is far better than my locally built model. That can be changed with efforts in scaling and serving my model in a website (or via API at least).
+
+* If I used my final solution as the new benchmark, there most definitely is a better solution. There are three areas in which my solution falls down, usability, speed and performance. Google enables multiple languages to be used on it's own voice assistant and language detection though limited to a certain extent. Even if Google's performance is worse, the implementation in terms of outreach is far better than my locally built model. That can be changed with efforts in creating a more efficient pipeline and serving my model through a website (or via API at least).
 
 <!--In this section, you will need to provide discussion as to how one aspect of the implementation you designed could be improved. As an example, consider ways your implementation can be made more general, and what would need to be modified. You do not need to make this improvement, but the potential solutions resulting from these changes are considered and compared/contrasted to your current solution. Questions to ask yourself when writing this section:
 * _Are there further improvements that could be made on the algorithms or techniques you used in this project?_
