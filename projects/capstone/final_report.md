@@ -19,7 +19,19 @@ Using Convolutional Neural Network architectures in audio classification is an e
 
 
 ### Problem Statement
-Since widely available speech-to-text transcription APIs currently require a language to be pre-selected before use, there is an opportunity to automate this process. The solution is to create a model which identifies language from speech audio. This will be a multiclass classification using audio-based features and the target can be one of many languages.
+Since widely available speech-to-text transcription APIs currently require a language to be pre-selected before use, there is an opportunity to automate this process.
+
+The solution is to create a model which identifies language from speech audio. This will be a multiclass classification using audio-based features and the target can be one of many languages.
+
+I tackled this problem in a number of steps. Firstly I performed an exploratory data analysis to determine the underlying characteristics of the data in order to find a robust dataset sample for this exercise. The next step was to understand the different transformations available for audio classification. Having settled on using mel spectograms as a feature, I selected transfer learning as an approach to classifying audio due to the high performance of out-of-the-box Convolutional Neural Networks in the image classification space. Using the higher level bottleneck features obtained from the ResNet50 model, I trained a classification model using a simple Deep Neural Network.
+
+In search of better performance, I experimented with different elements of the process defined above:
+- Unfreezing layers
+- Hyperparameter selection
+- Further subsampling to find mel spectograms of consistent size and transformations in the form of cropping mel spectograms images
+- Increased the size of training/test/validation dataset
+
+Finally, I evaluated the performance of the final model with the test dataset.
 
 <!--In this section, you will want to clearly define the problem that you are trying to solve, including the strategy (outline of tasks) you will use to achieve the desired solution. You should also thoroughly discuss what the intended solution will be for this problem. Questions to ask yourself when writing this section:
 - _Is the problem statement clearly defined? Will the reader understand what you are expecting to solve?_
@@ -27,6 +39,7 @@ Since widely available speech-to-text transcription APIs currently require a lan
 - _Is an anticipated solution clearly defined? Will the reader understand what results you are looking for?_-->
 
 ### Metrics
+
 <!--In this section, you will need to clearly define the metrics or calculations you will use to measure performance of a model or result in your project. These calculations and metrics should be justified based on the characteristics of the problem and problem domain. Questions to ask yourself when writing this section:
 - _Are the metrics you’ve chosen to measure the performance of your models clearly discussed and defined?_
 - _Have you provided reasonable justification for the metrics chosen based on the problem and solution?_-->
@@ -52,9 +65,7 @@ The audio clips are all in a consistent mp3 format with a sample rate of 48 kHz.
 
 
 
-
-
-The Chinese dataset is heavily gender imbalanced with just 32 usable recordings made by females compared to the 4909 clips created by males. There is no opportunity to correct this imbalance with oversampling since there are so few records. To eliminate the possiblility of this gender imbalance becoming a key driver behind the final model created, I made the decision to only use the male dataset only for each language.
+The Chinese dataset is heavily gender imbalanced with just 32 usable recordings made by females compared to the 4909 clips created by males. There is no opportunity to correct this imbalance with oversampling since there are so few records from the female Chinese population. To eliminate the possiblility of this gender imbalance becoming a key driver behind the final model created, the decision was made to only use the male dataset for each language.
 
 This dataset is available under a [CCO licence](https://creativecommons.org/share-your-work/public-domain/cc0/). Enhancement and reuse of the works is permitted for any purposes without restriction under copyright or database law.
 
