@@ -23,12 +23,13 @@ Since widely available speech-to-text transcription APIs currently require a lan
 
 The solution is to create a model which identifies language from speech audio. This will be a multiclass classification using audio-based features and the target can be one of many languages.
 
-I tackled this problem in a number of steps. Firstly I performed an exploratory data analysis to determine the underlying characteristics of the data in order to find a robust dataset sample for this exercise. The next step was to understand the different transformations available for audio classification. Having settled on using mel spectograms as a feature, I selected transfer learning as an approach to classifying audio due to the high performance of out-of-the-box Convolutional Neural Networks in the image classification space. Using the higher level bottleneck features obtained from the ResNet50 model, I trained a classification model using a simple Deep Neural Network.
+I tackled this problem in a number of steps. Firstly I performed an exploratory data analysis to determine the underlying characteristics of the data in order to find a robust dataset sample for this exercise. The next step was to understand the different transformations available for audio classification. Having settled on using melspectograms as a feature, preprocessing the audio and extracting features into train/validation/test sets. I selected transfer learning as an approach to classifying audio in order to reduce the training time whilst still capturing more complex features from an image. Convolutional Neural Networks typically perform very well in this image classification space. Using the higher level bottleneck features obtained from the ResNet50 model, I trained a classification model using a simple Deep Neural Network.
 
 In search of better performance, I experimented with different elements of the process defined above:
+- Different model architectures
 - Unfreezing layers
 - Hyperparameter selection
-- Further subsampling to find mel spectograms of consistent size and transformations in the form of cropping mel spectograms images
+- Further subsampling to find melspectograms of consistent size and transformations in the form of cropping melspectograms images
 - Increased the size of training/test/validation dataset
 
 Finally, I evaluated the performance of the final model with the test dataset.
@@ -39,6 +40,15 @@ Finally, I evaluated the performance of the final model with the test dataset.
 - _Is an anticipated solution clearly defined? Will the reader understand what results you are looking for?_-->
 
 ### Metrics
+For this project, I will simply be using accuracy as an evaluation metric.
+
+This is the number of correct predictions divided by the total number of  predictions.
+
+Accuracy can sometimes be misleading. In the case of imbalanced classes, we may get a high accuracy without solving the problem. I have taken care to ensure the labels of my dataset will be uniformly distributed, therefore accuracy will indeed be a good indicator of performance.
+
+In practice, we do not need to look at precision or recall.
+
+
 
 <!--In this section, you will need to clearly define the metrics or calculations you will use to measure performance of a model or result in your project. These calculations and metrics should be justified based on the characteristics of the problem and problem domain. Questions to ask yourself when writing this section:
 - _Are the metrics you’ve chosen to measure the performance of your models clearly discussed and defined?_
@@ -49,26 +59,23 @@ Finally, I evaluated the performance of the final model with the test dataset.
 <!--_(approx. 2-4 pages)_-->
 
 ### Data Exploration
-The [Common Voice dataset](https://voice.mozilla.org/en/datasets) contains 1945 hours of validated recordings in 29 different languages. Volunteers record voice clips by reading from a bank of donated sentences. These clips are validated through a voting process, only allowing audio clips with 2 or more votes through to the Common Voice dataset.
+The [Common Voice dataset](https://voice.mozilla.org/en/datasets) contains 1945 hours of validated recordings in 29 different languages. The English dataset alone is more than 30gb in storage size. Volunteers record voice clips by reading from a bank of donated sentences. These clips are validated through a voting process, only allowing audio clips with 2 or more votes through to the Common Voice dataset. This dataset is available under a [CCO licence](https://creativecommons.org/share-your-work/public-domain/cc0/). Enhancement and reuse of the works is permitted for any purposes without restriction under copyright or database law.
 
-Each audio clip has an associated record of metadata, including the following fields:
-- client_id
-- path
-- sentence
-- up_votes
-- down_votes
-- age
-- gender
-- accent
+There is a master tsv (tab seperated values) file for each language containing the associated metadata for the audio clips, including the following fields in string format:
+- client_id: a unique identifer of the contributor
+- path: path to the audio file from the clips folder
+- sentence: sentence spoken by the contributor
+- up_votes: number of up votes from other contributors
+- down_votes: number of down votes from other contributors
+- age: age grouped by decade
+- gender: male, female or other
+- accent: regional acent if reported
 
-The audio clips are all in a consistent mp3 format with a sample rate of 48 kHz. Since a variety of volunteers with different hardware have produced this dataset, there may be cause for concern with the consistency of recordings. The upvote metadata will be valuable in finding the most consistent recordings. In addition, the mixed recording conditions may contribute positively to the training, producing a final model is practical and generalisable to the wider world.
+The audio clips are all in a consistent mp3 format with a sample rate of 48 kHz. Since a variety of volunteers with different hardware have produced this dataset, there may be cause for concern with the consistency of recordings. The upvote metadata will be used as a proxy in finding the most consistent recordings. The mixed recording conditions may actually contribute positively to the training, producing a final model is practical and generalisable to the wider world.
 
+The Chinese dataset is heavily gender imbalanced with just 32 usable recordings made by females compared to the 4909 clips created by males. There is no opportunity to correct the gender imbalance with oversampling since there are so few records from the female Chinese population. To eliminate the possiblility of this gender imbalance becoming a key driver behind the final model created, the decision was made to only use the male dataset for each language.
 
-
-The Chinese dataset is heavily gender imbalanced with just 32 usable recordings made by females compared to the 4909 clips created by males. There is no opportunity to correct this imbalance with oversampling since there are so few records from the female Chinese population. To eliminate the possiblility of this gender imbalance becoming a key driver behind the final model created, the decision was made to only use the male dataset for each language.
-
-This dataset is available under a [CCO licence](https://creativecommons.org/share-your-work/public-domain/cc0/). Enhancement and reuse of the works is permitted for any purposes without restriction under copyright or database law.
-
+The sheer size of the dataset cannot be computed using my limited tiem and resources. I chose to sample 1000 audio files from the three languages: English, Spanish and Chinese. These languages seems very different in terms of linguistics, tone, pitch which I hope will lead to more distinguishable features between the classes.
 
 <!--In this section, you will be expected to analyze the data you are using for the problem. This data can either be in the form of a dataset (or datasets), input data (or input files), or even an environment. The type of data should be thoroughly described and, if possible, have basic statistics and information presented (such as discussion of input features or defining characteristics about the input or environment). Any abnormalities or interesting qualities about the data that may need to be addressed have been identified (such as features that need to be transformed or the possibility of outliers). Questions to ask yourself when writing this section:
 - _If a dataset is present for this problem, have you thoroughly discussed certain features about the dataset? Has a data sample been provided to the reader?_
@@ -83,12 +90,38 @@ This dataset is available under a [CCO licence](https://creativecommons.org/shar
 - _If a plot is provided, are the axes, title, and datum clearly defined?_-->
 
 ### Algorithms and Techniques
+**ResNet50** is a state-of-the-art architecture with 50 layers trained on the ImageNet dataset. The model architecture was groundbreaking in solving the [vanishing gradient problem](https://medium.com/@anishsingh20/the-vanishing-gradient-problem-48ae7f501257) - deeper neural networks are outperformed by shallower neural networks.
+
+Similar to other Convolutional Neural Networks (CNNs) such as VGG16 and AlexNet, ResNet50 is formed of convolutional layers. These convolutions give spatial context that traditional fully-connected neural networks lack, so in cases where spatial context is important, for instance image classification, CNNs outperform traditional structures.
+
+Redisual Neural Networks are 
+
+![Residual learning: a building block][logo]
+
+[logo]: https://i.stack.imgur.com/msvse.png "Residual learning: a building block"
+[source: imgur](https://i.stack.imgur.com/msvse.png) Residual learning  building block
+
+implementation of the gradient boosting machines that is highly flexible and versatile while being scalable and fast. XGBoost works with most regression, classification, and ranking problems as well as other objective functions; the framework also gained its popularity in recent years because of its compatibility with most platforms and distributed solutions like Amazon AWS, Apache Hadoop, Spark among others.
+
+In short, XGBoost is a variation of boosting - an ensemble method algorithm that tries to fit the data by using a number of "weak" models, typically decision trees. The idea is that a "weak" classifier which only performs slightly better than random guessing can be improved ("boosted") into a "stronger" one that is arbitrarily more accurate ([source: Y. Freund, R. E. Schapire](https://cseweb.ucsd.edu/~yfreund/papers/IntroToBoosting.pdf))([source: R. E. Schapire](http://www.cs.princeton.edu/~schapire/papers/strengthofweak.pdf)). Building on the weak learners sequentially, at every round each learner aims to reduce the bias of the whole ensemble of learners, thus the weaker learners eventually combined into a powerful model. This idea gave birth to various boosting algorithms such as AdaBoost, Gradient Tree Boosting, etc.
+
+XGBoost is an example of gradient boosting model, which is built in stages just like any other boosting method. In gradient boosting, weak learners are generalized by optimizing an arbitrary loss function using its gradient.
+
+> XGBoost, as a variation of boosting, features a novel tree learning algorithm for handling sparse data; a theoretically justified weighted quantile sketch procedure enables handling instance weights in approximate tree learning.
+
+[source: T. Chen, C. Guestrin](http://dmlc.cs.washington.edu/data/pdf/XGBoostArxiv.pdf)
+
+There is a number of advantages in using XGBoost over other classification methods:
+* **Work with large data:** XGBoost packs many advantageous features to facilitate working with data of enormous size that typically can't fit into the system's memory such as distributed or cloud computing. It is also implemented with automatic handling of missing data (sparse) and allows continuation of training, or batch training which was a tremendous help for me in this project.
+* **Built-in regularization:** XGBoost supports several options when it comes to controlling regularization and keeping the model from overfitting, including gamma (minimum loss reduction to split a node further), L1 and L2 regularizations, maximum tree depth, minimum sum of weights of all observations required in a child, etc.
+* **Optimization for both speed and performance:** XGBoost provides options to reduce computation time while keeping model accuracy using parallelization with multi-core CPU, cache optimization, and GPU mode that makes use of the graphics unit for tree training.
 <!--In this section, you will need to discuss the algorithms and techniques you intend to use for solving the problem. You should justify the use of each one based on the characteristics of the problem and the problem domain. Questions to ask yourself when writing this section:
 - _Are the algorithms you will use, including any default variables/parameters in the project clearly defined?_
 - _Are the techniques to be used thoroughly discussed and justified?_
 - _Is it made clear how the input data or datasets will be handled by the algorithms and techniques chosen?_-->
 
 ### Benchmark
+The benchmark model will be a classifier which defaults to one language. This would replicate the current scenario in using ASR where we have no prior knowledge of the audio language. Our data has been split into three equally balanced classes. Using the evaluation metric defined above, this benchmark would achieve a 33.3% accuracy score.
 <!--In this section, you will need to provide a clearly defined benchmark result or threshold for comparing across performances obtained by your solution. The reasoning behind the benchmark (in the case where it is not an established result) should be discussed. Questions to ask yourself when writing this section:
 - _Has some result or value been provided that acts as a benchmark for measuring performance?_
 - _Is it clear how this result or value was obtained (whether by data or by hypothesis)?_-->
@@ -98,12 +131,49 @@ This dataset is available under a [CCO licence](https://creativecommons.org/shar
 <!--_(approx. 3-5 pages)_-->
 
 ### Data Preprocessing
+I chose to split the data into train/validation/test sets. The train set will be used to train the classifier, with the validation set providing context on the generalisation of the model. The test set will be kept to evaluate the performance of the final model.
+
+There were three stages to preprocessing:
+- Sampling
+- Generating and saving features to disk
+- Initialising features from disk for classification
+
+The process to generate my sample datasets from the metadata can be summarised in the following steps:
+
+1. The audio metadata is ordered by up votes for each language 
+2. The audio metadata is filtered by male
+3. The top 1000 audio files are selected for each language
+4. The metadata is randomised for each language
+5. The metadata is divded to create train/validation/test sets for each language
+6. The train/validation/test sets for the three languages are combined together to create equally balanced classes
+
+This generated 1800 training datapoints, 600 validation datapoints and 600 test datapoints.
+
+With the train/validation/test split in mind, I used the following folder structure to manage my melspectogram images:
+- data/train-melspectogram/
+- data/validation-melspectogram/
+- data/test-melspectogram/
+
+From the audio file path from each of these metadata points above, I ran the following workflow:
+
+1. Load audio file using path
+2. Trim the silence from the beginning and end of the audio file
+3. Extract the log mel-frequency spectogram array
+4. Scale array elements between 0 and 255
+5. Pivot the array (width represents time)
+6. Initialise mel-frequency spectogram image from array
+7. Save file to relevant folder outined above
+
+This generated 1800 training melspectograms, 600 validation melspectograms and 600 test melspectograms. These images were all 224 pixels in height, though they did vary in width. Initally, I did not feel that this would be an issue since the CNN architectures would learn from examples that this is not a distinguishing feature.
+
 <!--In this section, all of your preprocessing steps will need to be clearly documented, if any were necessary. From the previous section, any of the abnormalities or characteristics that you identified about the dataset will be addressed and corrected here. Questions to ask yourself when writing this section:
 - _If the algorithms chosen require preprocessing steps like feature selection or feature transformations, have they been properly documented?_
 - _Based on the **Data Exploration** section, if there were abnormalities or characteristics that needed to be addressed, have they been properly corrected?_
 - _If no preprocessing is needed, has it been made clear why?_-->
 
 ### Implementation
+
+I used the Keras library for my implementation.
 <!--In this section, the process for which metrics, algorithms, and techniques that you implemented for the given data will need to be clearly documented. It should be abundantly clear how the implementation was carried out, and discussion should be made regarding any complications that occurred during this process. Questions to ask yourself when writing this section:
 - _Is it made clear how the algorithms and techniques were implemented with the given datasets or input data?_
 - _Were there any complications with the original metrics or techniques that required changing prior to acquiring a solution?_
