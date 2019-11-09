@@ -3,5 +3,6 @@
     // The following will hide the data files in the editor
     "files.exclude": {
         "data/": true
-    }
+    },
+    "markdown-pdf.convertOnSave": true
 }
